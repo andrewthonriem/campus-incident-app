@@ -5,7 +5,7 @@ For the assignment demonstration, the app may be shown in Chrome using DevTools 
 
 **Built with:** Flutter · Provider · Firebase Authentication · Cloud Firestore · Cloudinary
 
-**Demo video:** [add link]
+**Demo video:** [https://youtu.be/U8hgesFGYSU]
 
 ## Features
 
