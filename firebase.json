@@ -1,0 +1,32 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "ui": {
+      "enabled": true
+    },
+    "singleProjectMode": true
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "campus-incident-app-f129c",
+          "appId": "1:993442167946:android:67ebe859cb6e2182b28173",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "campus-incident-app-f129c",
+          "configurations": {
+            "android": "1:993442167946:android:67ebe859cb6e2182b28173",
+            "web": "1:993442167946:web:d259e2f2081a18eab28173"
+          }
+        }
+      }
+    }
+  }
+}
