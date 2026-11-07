@@ -1,0 +1,102 @@
+rules_version = '2';
+
+// Campus Incident Reporting App — Cloud Firestore security rules.
+// Role-based access control is enforced HERE, on the server, not only in the UI.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAluAccount() {
+      return signedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email.matches('(?i)^[^@]+@(alustudent\\.com|alu\\.edu|aluedu\\.com)$');
+    }
+
+    function isAluStaffEmail() {
+      return signedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email.matches('(?i)^[^@]+@aluedu\\.com$');
+    }
+
+    function canUseAluApp() {
+      return isAluAccount()
+        && (request.auth.token.email_verified == true || isAluStaffEmail());
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isStaff() {
+      return isAluStaffEmail()
+        || (signedIn()
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && userDoc().data.role == 'staff');
+    }
+
+    function validCategory(c) {
+      return c in ['facilities', 'water', 'electricity', 'furniture', 'sanitation', 'safety'];
+    }
+
+    function validStatus(s) {
+      return s in ['submitted', 'inProgress', 'resolved', 'rejected'];
+    }
+
+    match /users/{uid} {
+      allow read: if (isAluAccount() && request.auth.uid == uid)
+        || canUseAluApp();
+
+      allow create: if signedIn()
+        && isAluAccount()
+        && request.auth.uid == uid
+        && request.resource.data.email is string
+        && request.auth.token.email is string
+        && request.resource.data.email.lower() == request.auth.token.email.lower()
+        && ((isAluStaffEmail() && request.resource.data.role == 'staff')
+          || (!isAluStaffEmail() && request.resource.data.role == 'student'))
+        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'department', 'createdAt']);
+
+      allow update: if canUseAluApp()
+        && request.auth.uid == uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'department']);
+
+      allow delete: if false;
+
+    }
+
+    match /incidents/{incidentId} {
+      allow read: if canUseAluApp();
+
+      allow create: if canUseAluApp()
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.status == 'submitted'
+        && validCategory(request.resource.data.category)
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 5
+        && request.resource.data.title.size() <= 80
+        && request.resource.data.description is string
+        && request.resource.data.description.size() >= 15
+        && request.resource.data.description.size() <= 1000
+        && request.resource.data.location is string
+        && request.resource.data.location.size() > 0
+        && request.resource.data.history is list
+        && request.resource.data.history.size() == 1;
+
+      allow update: if canUseAluApp()
+        && isStaff()
+        && validStatus(request.resource.data.status)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'updatedAt', 'history']);
+
+      allow delete: if (canUseAluApp() && isStaff())
+        || (canUseAluApp()
+            && resource.data.reporterId == request.auth.uid
+            && resource.data.status == 'submitted');
+
+    }
+  }
+}
